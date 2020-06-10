@@ -1,0 +1,59 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: amine-eks-cluster
+  region: eu-west-1
+
+nodeGroups:
+  - name: amine-eks-ng-1
+    instanceType: t2.micro
+    privateNetworking: true
+    labels:
+      role: infra
+    desiredCapacity: 3
+    minSize: 3
+    maxSize: 5
+    volumeSize: 5
+    volumeType: gp2
+    volumeEncrypted: true
+    iam:
+      withAddonPolicies:
+        ebs: true
+        autoScaler: true
+        cloudWatch: true
+    ssh:
+      publicKeyName: amine-infra
+
+  - name: amine-eks-ng-2
+    privateNetworking: true
+    labels:
+      role: apps
+    minSize: 1
+    maxSize: 3
+    volumeSize: 5
+    volumeType: gp2
+    volumeEncrypted: true
+    instancesDistribution:
+        maxPrice: 0.01
+        instanceTypes: ["t2.micro"] # At least one instance type should be specified
+        onDemandBaseCapacity: 0
+        onDemandPercentageAboveBaseCapacity: 80
+        spotInstancePools: 2
+    iam:
+      withAddonPolicies:
+        ebs: true
+        autoScaler: true
+        cloudWatch: true
+    ssh:
+      publicKeyName: amine-infra
+      
+cloudWatch:
+  clusterLogging:
+    enableTypes: ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+
+
+    # enable specific types of cluster control plane logs
+    # ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+    # all supported types: "api", "audit", "authenticator", "controllerManager", "scheduler"
+    # supported special values: "*" and "all"
