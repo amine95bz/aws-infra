@@ -1,0 +1,95 @@
+pipeline {
+    agent any
+
+    stages {
+        stage ('hello AWS') {
+            steps {
+                withAWS(credentials: 'aws-credentials', region: 'eu-west-1')
+            }
+        }
+        stage ('create EKS') {
+            steps {
+                // Download eksctl
+                sh 'curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+sudo mv /tmp/eksctl /usr/local/bin'
+                echo 'eksctl has been downloaded'
+                // Create EKS cluster
+                sh 'eksctl create cluster -f cluster.yml'
+                //Update EKS cluster
+                sh 'eksctl update cluster -f cluster.yml'
+                // Create node group for the cluster EKS
+                sh 'eksctl create nodegroup -f cluster.yaml --exclude=adserviolyon-eks-ng-2'
+            }
+        }
+        
+        stage ('install calico') {
+            steps {
+                // Download helm
+                sh 'curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3'
+                sh 'chmod 700 get_helm.sh'
+                sh './get_helm.sh'
+                echo 'helm has been downloaded'
+                // install calico
+                sh 'helm install calico ./calico'
+            }
+        }
+        
+        stage ('install core') {
+            steps {
+                sh 'helm upgrade --force --install core'
+            }
+        }
+
+        stage ('install grafana') {
+            steps {
+                sh 'helm install stable/grafana'
+                sh 'helm install --name my-release stable/grafana'
+            }
+        }
+
+        stage ('install keycloak') {
+            steps {
+                sh 'helm dependency build'
+                sh 'helm upgrade --force --install --recreate-pods sso  . --namespace adserviolyon-sso'
+                // Installing charts 
+                sh 'helm install --name keycloak stable/keycloak'
+            }
+        }
+
+        stage ('install metrics server') {
+            steps {
+                // il faut configurer aws 
+                sh 'aws configure $()'
+                sh 'aws eks update-kubeconfig --name adserviolyon-staging-eks-cluster'
+                echo 'connected'
+                sh 'kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.3.6/components.yaml'
+                sh 'kubectl get deployment metrics-server -n kube-system'
+            }
+        }
+
+        stage ('install prometheus') {
+            steps {
+                sh 'helm install stable/prometheus'
+                // install chart
+                sh 'helm install --name my-release stable/prometheus'
+            }
+        }
+
+        stage ('install sonar') {
+            steps {
+                sh 'helm install stable/sonarqube'
+            }
+        }
+
+        stage ('sonatype-nexus') {
+            steps {
+                sh 'helm upgrade --force --install nexus3  . --namespace adserviolyon-sofact'
+            }
+        }
+
+        stage ('install traefik')
+            steps {
+                sh 'helm install stable/traefik --name my-release --namespace kube-system'
+            }
+    }
+}
