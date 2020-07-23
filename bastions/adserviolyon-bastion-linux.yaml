@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: LinuxBastion+VPC Nov,19,2019 QS(0037) (Please do not remove)
+Parameters:
+  LinuxBastionAMIOS:
+    AllowedValues:
+      - Amazon-Linux2-HVM
+      - Amazon-Linux-HVM
+      - CentOS-7-HVM
+      - Ubuntu-Server-18.04-LTS-HVM
+      - Ubuntu-Server-16.04-LTS-HVM
+      - SUSE-SLES-15-HVM
+    Default: Amazon-Linux2-HVM
+    Description: The the AMI to be used for the bastion instances.
+    Type: String
+  
+  IpAddress:
+    Description: Your IP Address
+    Type: String
+
+  InstanceType:
+    Description: WebServer EC2 instance type
+    Type: String
+    Default: t1.micro
+    AllowedValues:
+      - t1.micro
+      - t2.micro
+      - m1.small
+      - m1.medium
+      - m1.large
+      - m1.xlarge
+      - m2.xlarge
+      - m2.2xlarge
+      - m2.4xlarge
+      - m3.xlarge
+      - m3.2xlarge
+      - c1.medium
+      - c1.xlarge
+      - cc1.4xlarge
+      - cc2.8xlarge
+      - cg1.4xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+  
+  KeyPairName:
+    Description: Name of an existing public/private key pair. If you do not have one in this AWS Region,
+      please create it before continuing.
+    Type: 'AWS::EC2::KeyPair::KeyName'
+
+  VPCID:
+    Description: VPC ID
+    Type: AWS::EC2::VPC::Id
+  
+  Subnet:
+    Description: Subnet  
+    Type: AWS::EC2::Subnet::Id
+
+Mappings:
+  AWSAMIRegionMap:
+    eu-west-1:
+      AMZNLINUX2: ami-06ce3edf0cff21f07
+      AMZNLINUXHVM: ami-00890f614e48ce866
+      CENTOS7HVM: ami-0b850cf02cc00fdc8
+      US1604HVM: ami-0f2ed58082cb08a4d
+      US1804HVM: ami-0701e7be9b2a77600
+      SLES15HVM: ami-0a58a1b152ba55f1d
+  AMINameMap:
+    Amazon-Linux2-HVM:
+      Code: AMZNLINUX2
+    Amazon-Linux-HVM:
+      Code: AMZNLINUXHVM
+    CentOS-7-HVM:
+      Code: CENTOS7HVM
+    Ubuntu-Server-18.04-LTS-HVM:
+      Code: US1804HVM
+    Ubuntu-Server-16.04-LTS-HVM:
+      Code: US1604HVM
+    SUSE-SLES-15-HVM:
+      Code: SLES15HVM
+
+Resources:
+  Ec2InstanceLinux:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: !FindInMap 
+        - AWSAMIRegionMap
+        - !Ref 'AWS::Region'
+        - !FindInMap 
+          - AMINameMap
+          - !Ref LinuxBastionAMIOS
+          - Code
+    
+      KeyName: !Ref KeyPairName
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref Subnet
+      SecurityGroupIds:
+        - !Ref LinuxBastionSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 10
+      Tags:
+        - Key: Name
+          Value: "LinuxMachineBastion"
+
+  LinuxBastionSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enables SSH Access to Bastion Hosts
+      VpcId: !Ref VPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Sub '${IpAddress}/32'
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+  
+  BastionEIP:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      InstanceId: !Ref Ec2InstanceLinux

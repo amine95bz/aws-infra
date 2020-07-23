@@ -2,19 +2,19 @@ apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 
 metadata:
-  name: amine-eks-cluster
+  name: demo-eks
   region: eu-west-1
 
 nodeGroups:
-  - name: amine-eks-ng-1
-    instanceType: t2.micro
+  - name: demo-node1
+    instanceType: m5.large
     privateNetworking: true
     labels:
       role: infra
     desiredCapacity: 3
     minSize: 3
     maxSize: 5
-    volumeSize: 5
+    volumeSize: 20
     volumeType: gp2
     volumeEncrypted: true
     iam:
@@ -25,18 +25,18 @@ nodeGroups:
     ssh:
       publicKeyName: amine-infra
 
-  - name: amine-eks-ng-2
+  - name: demp-node2
     privateNetworking: true
     labels:
       role: apps
     minSize: 1
     maxSize: 3
-    volumeSize: 5
+    volumeSize: 10
     volumeType: gp2
     volumeEncrypted: true
     instancesDistribution:
-        maxPrice: 0.01
-        instanceTypes: ["t2.micro"] # At least one instance type should be specified
+        maxPrice: 0.03
+        instanceTypes: ["m5.large"] # At least one instance type should be specified
         onDemandBaseCapacity: 0
         onDemandPercentageAboveBaseCapacity: 80
         spotInstancePools: 2

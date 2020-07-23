@@ -1,0 +1,34 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: eks cloudwatch role  
+Resources:
+  CloudWatchRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+        - PolicyName: eks-cluster-cloudwatch-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - iam:Get*
+                  - iam:List*
+                  - iam:Generate* 
+                Resource: "*"
+                Effect: Allow
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - eks.amazonaws.com
+            Effect: Allow
+        
+  CloudwatchProfile:
+    Type: AWS::IAM::CloudWatch
+    Properties:
+      Roles:
+        - !Ref CloudWatchRole
+      Path: /

@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: WindowsServerBastion+VPC Nov,19,2019 QS(0037) (Please do not remove)
+Parameters:
+  WindowsBastionAMIOS:
+    AllowedValues:
+      - WINDOWS-Server-Base19
+    Default: WINDOWS-Server-Base19
+    Description: The the AMI to be used for the bastion instances.
+    Type: String
+
+  IpAddress:
+    Description: Your IP Address
+    Type: String
+  
+  InstanceType:
+    Description: WebServer EC2 instance type
+    Type: String
+    Default: t1.micro
+    AllowedValues:
+      - t1.micro
+      - t2.micro
+      - m1.small
+      - m1.medium
+      - m1.large
+      - m1.xlarge
+      - m2.xlarge
+      - m2.2xlarge
+      - m2.4xlarge
+      - m3.xlarge
+      - m3.2xlarge
+      - c1.medium
+      - c1.xlarge
+      - cc1.4xlarge
+      - cc2.8xlarge
+      - cg1.4xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+
+  KeyPairName:
+    Description: Name of an existing public/private key pair. If you do not have one in this AWS Region,
+      please create it before continuing.
+    Type: 'AWS::EC2::KeyPair::KeyName'
+
+  VPCID:
+    Description: VPC ID
+    Type: AWS::EC2::VPC::Id
+  
+  Subnet:
+    Description: Subnet  
+    Type: AWS::EC2::Subnet::Id
+
+Mappings:
+  AWSAMIRegionMap:
+    eu-west-1:
+      WINDOWS19: ami-07c8a3a59f2f7305b
+  AMINameMap:
+    WINDOWS-Server-Base19:
+      Code: WINDOWS19
+
+Resources:
+  Ec2InstanceWindows:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap 
+        - AWSAMIRegionMap
+        - !Ref 'AWS::Region'
+        - !FindInMap 
+          - AMINameMap
+          - !Ref WindowsBastionAMIOS
+          - Code
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref Subnet
+      SecurityGroupIds:
+        - !Ref WindowsBastionSecurityGroup
+      KeyName: !Ref KeyPairName
+      Tags:
+        - Key: Name
+          Value: "WindowsMachineBastion"
+
+  WindowsBastionSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enables SSH Access to Bastion Hosts
+      VpcId: !Ref VPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Sub '${IpAddress}/32'
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  BastionEIP:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      InstanceId: !Ref Ec2InstanceWindows
